@@ -30,10 +30,7 @@ mv temp/.git .
 echo "creating www directory and copy contents over"
 mkdir -p assets/www/plugins/cordova-plugin-advanced-geolocation/www
 cp temp/www/AdvancedGeolocation.js assets/www/plugins/cordova-plugin-advanced-geolocation/www/
-cp temp/sample/map.js assets/www/js/
-cp temp/sample/blue-pin.png assets/www/img/
-cp temp/sample/green-pin.png assets/www/img/
-cp temp/sample/sample-map.html assets/www/
+
 cp -r src/ java/
 
 echo "deleting temp directory"
