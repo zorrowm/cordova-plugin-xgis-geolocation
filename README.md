@@ -138,7 +138,7 @@ export interface IGroupSatellites {
 - 包装plugin代码
 
 ```ts
-import AdvancedGeolocation from 'cordova-plugin-advanced-geolocation/www/AdvancedGeolocation';
+import AdvancedGeolocation from 'cordova-plugin-xgis-geolocation/www/AdvancedGeolocation';
 import {Global} from 'xframelib';
 const emitter = Global.EventBus;
 //参看说明：https://www.npmjs.com/package/cordova-plugin-advanced-geolocation?activeTab=readme
