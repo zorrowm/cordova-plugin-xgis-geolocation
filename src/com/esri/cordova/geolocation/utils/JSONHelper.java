@@ -520,6 +520,7 @@ public final class JSONHelper {
 
                 if(count>0)
                 {
+                    int usedNum=0;
                         //循环遍历status提取卫星信息
                         for (int i = 0; i < count; i++) {
 
@@ -527,7 +528,11 @@ public final class JSONHelper {
 
                             satelliteInfo.put("vid", gnssStatus.getSvid(i));
                             satelliteInfo.put("satType", gnssStatus.getConstellationType(i));
-                            satelliteInfo.put("usedInFix", gnssStatus.usedInFix(i));
+
+                            boolean usedInFix=gnssStatus.usedInFix(i);
+                            if(usedInFix)
+                            usedNum++;
+                            satelliteInfo.put("usedInFix", usedInFix);
                             satelliteInfo.put("azimuth",gnssStatus.getAzimuthDegrees(i));  //卫星方位角
                             satelliteInfo.put("elevation",  gnssStatus.getElevationDegrees(i));     //卫星高程
                             satelliteInfo.put("hasEphemeris", gnssStatus.hasEphemerisData(i));      //卫星是否具有星历数据
@@ -535,6 +540,8 @@ public final class JSONHelper {
                             satelliteInfo.put("SNR", gnssStatus.getCn0DbHz(i));
                             json.put(Integer.toString(i), satelliteInfo);
                         }
+                    //使用中的卫星数
+                    json.put("usedInFix", usedNum);
                 }
             }
         }
