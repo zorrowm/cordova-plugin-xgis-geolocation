@@ -1,0 +1,26 @@
+# Non-project-specific build files using default Android Studio project
+AndroidManifest.xml
+MainActivity.java
+*.gradle
+*.properties
+android.*
+/platform_www
+/res
+/src/org
+/src/com/example
+/assets
+/cordova
+/CordovaLib
+/gradlew
+/gradlew.bat
+/gradle
+# Ant builds
+ant-build
+ant-gen
+# Eclipse builds
+gen
+out
+# Gradle builds
+/build
+WhitelistPlugin.java
+encodings.xml
