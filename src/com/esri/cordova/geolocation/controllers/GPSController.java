@@ -18,7 +18,8 @@ package com.esri.cordova.geolocation.controllers;
 
 
 import android.content.Context;
-import android.location.GpsStatus;
+// import android.location.GpsStatus;
+import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -41,7 +42,8 @@ public final class GPSController implements Runnable {
 
     private static LocationManager _locationManager = null;
     private static LocationListener _locationListenerGPSProvider = null;
-    private static GpsStatus.Listener _gpsStatusListener = null;
+    // private static GpsStatus.Listener _gpsStatusListener = null;
+     private static GnssStatus.Callback _gnsscallback=null;
 
     private static CallbackContext _callbackContext; // Threadsafe
     private static CordovaInterface _cordova;
@@ -167,10 +169,12 @@ public final class GPSController implements Runnable {
         if(_locationManager != null){
             Log.d(TAG, "Attempting to stop gps geolocation");
 
-            if(_gpsStatusListener != null){
-                _locationManager.removeGpsStatusListener(_gpsStatusListener);
-                _gpsStatusListener = null;
-            }
+            // if(_gpsStatusListener != null){
+            //     _locationManager.removeGpsStatusListener(_gpsStatusListener);
+            //     _gpsStatusListener = null;
+            // }
+            if(_gnsscallback!=null)
+            _locationManager.unregisterGnssStatusCallback(_gnsscallback);
 
             if(_locationListenerGPSProvider != null){
 
@@ -220,24 +224,38 @@ public final class GPSController implements Runnable {
 
     private static InitStatus setGPSStatusListener(){
 
-        // IMPORTANT: The GpsStatus.Listener Interface is deprecated at API 24.
-        // Reference: https://developer.android.com/reference/android/location/package-summary.html
-        _gpsStatusListener = new GpsStatus.Listener() {
-
+         _gnsscallback = new GnssStatus.Callback() {
+            //定期调用以报告GNSS卫星状态
             @Override
-            public void onGpsStatusChanged(int event) {
+            public void onSatelliteStatusChanged(GnssStatus status) {
+
                 Log.d(TAG, "GPS status changed.");
 
                 // Ignore if GPS_EVENT_STARTED or GPS_EVENT_STOPPED
-                if(!Thread.currentThread().isInterrupted() &&
-                        (event == GpsStatus.GPS_EVENT_FIRST_FIX ||
-                                event == GpsStatus.GPS_EVENT_SATELLITE_STATUS) &&
-                                        _locationManager != null){
+                if(!Thread.currentThread().isInterrupted() &&_locationManager != null){
                     sendCallback(PluginResult.Status.OK,
-                            JSONHelper.satelliteDataJSON(_locationManager.getGpsStatus(null)));
+                            JSONHelper.gnssStatusDataJSON(status));
                 }
             }
         };
+        // IMPORTANT: The GpsStatus.Listener Interface is deprecated at API 24.
+        // Reference: https://developer.android.com/reference/android/location/package-summary.html
+        // _gpsStatusListener = new GpsStatus.Listener() {
+
+        //     @Override
+        //     public void onGpsStatusChanged(int event) {
+        //         Log.d(TAG, "GPS status changed.");
+
+        //         // Ignore if GPS_EVENT_STARTED or GPS_EVENT_STOPPED
+        //         if(!Thread.currentThread().isInterrupted() &&
+        //                 (event == GpsStatus.GPS_EVENT_FIRST_FIX ||
+        //                         event == GpsStatus.GPS_EVENT_SATELLITE_STATUS) &&
+        //                                 _locationManager != null){
+        //             sendCallback(PluginResult.Status.OK,
+        //                     JSONHelper.satelliteDataJSON(_locationManager.getGpsStatus(null)));
+        //         }
+        //     }
+        // };
 
         final InitStatus status = new InitStatus();
 
@@ -245,7 +263,8 @@ public final class GPSController implements Runnable {
 
         if(gpsProviderEnabled){
             try{
-                _locationManager.addGpsStatusListener(_gpsStatusListener);
+                // _locationManager.addGpsStatusListener(_gpsStatusListener);
+                _locationManager.registerGnssStatusCallback(_gnsscallback, null);
             }
             // if the ACCESS_FINE_LOCATION permission is not present
             catch(SecurityException exc){

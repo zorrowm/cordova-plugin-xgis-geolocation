@@ -18,6 +18,7 @@ package com.esri.cordova.geolocation.utils;
 
 import android.location.GpsSatellite;
 import android.location.GpsStatus;
+import android.location.GnssStatus;
 import android.location.Location;
 import android.os.Build;
 import android.telephony.CellIdentityCdma;
@@ -490,6 +491,50 @@ public final class JSONHelper {
                     json.put(Integer.toString(count), satelliteInfo);
 
                     count++;
+                }
+            }
+        }
+        catch (JSONException exc){
+            logJSONException(exc);
+        }
+
+        return json.toString();
+    }
+
+
+    public static String gnssStatusDataJSON(GnssStatus gnssStatus){
+
+        final Calendar calendar = Calendar.getInstance();
+        final JSONObject json = new JSONObject();
+
+        try {
+
+            json.put("provider", SATELLITE_PROVIDER);
+            json.put("timestamp", calendar.getTimeInMillis());
+  
+            //如果卫星总数大于0
+            if(gnssStatus!=null) {
+                //卫星总数量
+                int count = gnssStatus.getSatelliteCount();
+                json.put("count", count);
+
+                if(count>0)
+                {
+                        //循环遍历status提取卫星信息
+                        for (int i = 0; i < count; i++) {
+
+                            final JSONObject satelliteInfo = new JSONObject();
+
+                            satelliteInfo.put("vid", gnssStatus.getSvid(i));
+                            satelliteInfo.put("satType", gnssStatus.getConstellationType(i));
+                            satelliteInfo.put("usedInFix", gnssStatus.usedInFix(i));
+                            satelliteInfo.put("azimuth",gnssStatus.getAzimuthDegrees(i));  //卫星方位角
+                            satelliteInfo.put("elevation",  gnssStatus.getElevationDegrees(i));     //卫星高程
+                            satelliteInfo.put("hasEphemeris", gnssStatus.hasEphemerisData(i));      //卫星是否具有星历数据
+                            satelliteInfo.put("hasAlmanac", gnssStatus.hasAlmanacData(i));   //卫星是否具有年历数据
+                            satelliteInfo.put("SNR", gnssStatus.getCn0DbHz(i));
+                            json.put(Integer.toString(i), satelliteInfo);
+                        }
                 }
             }
         }
