@@ -132,6 +132,67 @@ public final class JSONHelper {
                 json.put("speed", location.getSpeed());
                 json.put("timestamp", location.getTime());
                 json.put("cached", cached);
+                //新增获取HDOP等值
+                Bundle extras = location.getExtras();
+                if(extras!=null)
+                {
+                    //PDOP 是 Position Dilution of Precision 的缩写，即 “位置精度衰减因子”，是衡量卫星分布对定位精度影响的关键指标。
+                    // 物理意义：PDOP 值越小，卫星在天空中的分布越合理，定位结果越可靠；反之，卫星分布集中（如都在低空）会导致定位误差增大。
+                    // 数值范围：通常为 1~10+，实际应用中 PDOP <3 表示定位精度优异，PDOP> 6 可能需要警惕定位误差。
+                    //常见键名为 pdop（部分设备可能用 gps_pdop），类型为 float
+                    float pdop = extras.getFloat("pdop", -1f); // 第二个参数为默认值
+                    if (pdop != -1f) {
+                        Log.d("PDOP", "位置精度衰减因子：" + pdop);
+                        json.put("pdop", pdop);
+                    }
+                    else
+                    {
+                         float pdop2 = extras.getFloat("gps_pdop", -1f); // 第二个参数为默认值
+                        if (pdop2 != -1f) {
+                                Log.d("PDOP", "gps_pdop位置精度衰减因子2：" + pdop2);
+                        }
+                        json.put("pdop", pdop2);
+                    }
+                    //地速分量
+                    // 东向速度（单位：m/s）
+                    float eastSpeed = extras.getFloat("velocity_east", 0f);
+                    // 北向速度（单位：m/s）
+                    float northSpeed = extras.getFloat("velocity_north", 0f);
+                    // 垂直速度（单位：m/s）
+                    float verticalSpeed = extras.getFloat("velocity_up", 0f);
+                    // Log.d("速度分量", "东向：" + eastSpeed + "，北向：" + northSpeed + "，垂直：" + verticalSpeed);
+                    json.put("velocity_east", eastSpeed);
+                    json.put("velocity_north", northSpeed);
+                    json.put("velocity_up", verticalSpeed);
+                    //故障字
+                    //故障字的具体位含义无统一标准，需结合设备或定位芯片文档，以下为常见约定：
+                    //位索引（从 0 开始）	含义说明
+                    // 0	卫星信号丢失（无有效卫星）
+                    // 1	定位计算错误（解算失败）
+                    // 2	时钟同步异常（设备时间不准）
+                    // 3	电离层误差过大（信号传播干扰）
+                    // 4	多路径效应严重（信号反射干扰）
+                    // 键名如 fault_bits 或 error_flags（类型为 int）
+                    int faultBits = extras.getInt("fault_bits", 0);
+                    if(faultBits!=0)
+                    {
+                        json.put("fault_bits", faultBits);
+                    }
+                    //  故障字通常通过 getExtras() 获取，键名如 fault_bits 或 error_flags（类型为 int）。解析时需按位判断
+                    // // 解析故障位（示例：判断是否卫星信号丢失）
+                    // boolean isSignalLost = (faultBits & (1 << 0)) != 0; 
+                    // // 判断是否计算错误
+                    // boolean isCalcError = (faultBits & (1 << 1)) != 0; 
+
+                }
+                else
+                {
+                    json.put("pdop", -1f);
+                    json.put("velocity_east", 0f);
+                    json.put("velocity_north", 0f);
+                    json.put("velocity_up", 0f);
+                    json.put("fault_bits", 0);
+                }
             }
             catch (JSONException exc) {
                 logJSONException(exc);
@@ -182,6 +243,67 @@ public final class JSONHelper {
                 json.put("bufferedLatitude", bufferLat);
                 json.put("bufferedLongitude", bufferedLon);
                 json.put("bufferedAccuracy", bufferedAccuracy);
+
+                //新增获取HDOP等值
+                Bundle extras = location.getExtras();
+                if(extras!=null)
+                {
+                    //PDOP 是 Position Dilution of Precision 的缩写，即 “位置精度衰减因子”，是衡量卫星分布对定位精度影响的关键指标。
+                    // 物理意义：PDOP 值越小，卫星在天空中的分布越合理，定位结果越可靠；反之，卫星分布集中（如都在低空）会导致定位误差增大。
+                    // 数值范围：通常为 1~10+，实际应用中 PDOP <3 表示定位精度优异，PDOP> 6 可能需要警惕定位误差。
+                    //常见键名为 pdop（部分设备可能用 gps_pdop），类型为 float
+                    float pdop = extras.getFloat("pdop", -1f); // 第二个参数为默认值
+                    if (pdop != -1f) {
+                        Log.d("PDOP", "位置精度衰减因子：" + pdop);
+                        json.put("pdop", pdop);
+                    }
+                    else
+                    {
+                        float pdop2 = extras.getFloat("gps_pdop", -1f); // 第二个参数为默认值
+                        if (pdop2 != -1f) {
+                            Log.d("PDOP", "gps_pdop位置精度衰减因子2：" + pdop2);
+                        }
+                        json.put("pdop", pdop2);
+                    }
+                    //地速分量
+                    // 东向速度（单位：m/s）
+                    float eastSpeed = extras.getFloat("velocity_east", 0f);
+                    // 北向速度（单位：m/s）
+                    float northSpeed = extras.getFloat("velocity_north", 0f);
+                    // 垂直速度（单位：m/s）
+                    float verticalSpeed = extras.getFloat("velocity_up", 0f);
+                    // Log.d("速度分量", "东向：" + eastSpeed + "，北向：" + northSpeed + "，垂直：" + verticalSpeed);
+                    json.put("velocity_east", eastSpeed);
+                    json.put("velocity_north", northSpeed);
+                    json.put("velocity_up", verticalSpeed);
+                    //故障字
+                    //故障字的具体位含义无统一标准，需结合设备或定位芯片文档，以下为常见约定：
+                    //位索引（从 0 开始）	含义说明
+                    // 0	卫星信号丢失（无有效卫星）
+                    // 1	定位计算错误（解算失败）
+                    // 2	时钟同步异常（设备时间不准）
+                    // 3	电离层误差过大（信号传播干扰）
+                    // 4	多路径效应严重（信号反射干扰）
+                    // 键名如 fault_bits 或 error_flags（类型为 int）
+                    int faultBits = extras.getInt("fault_bits", 0);
+                    if(faultBits!=0)
+                    {
+                        json.put("fault_bits", faultBits);
+                    }
+                    //  故障字通常通过 getExtras() 获取，键名如 fault_bits 或 error_flags（类型为 int）。解析时需按位判断
+                    // // 解析故障位（示例：判断是否卫星信号丢失）
+                    // boolean isSignalLost = (faultBits & (1 << 0)) != 0; 
+                    // // 判断是否计算错误
+                    // boolean isCalcError = (faultBits & (1 << 1)) != 0; 
+                }
+                else
+                {
+                    json.put("pdop", -1f);
+                    json.put("velocity_east", 0f);
+                    json.put("velocity_north", 0f);
+                    json.put("velocity_up", 0f);
+                    json.put("fault_bits", 0);
+                }
             }
             catch (JSONException exc) {
                 logJSONException(exc);
