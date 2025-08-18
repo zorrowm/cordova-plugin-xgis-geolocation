@@ -255,7 +255,12 @@ class CordovaAdvancedLocationPlugin {
                   heading: Number(jsonObject.bearing),
                   speed: Number(jsonObject.speed),
                   timestamp: Number(jsonObject.timestamp),
-                  cached: Boolean(jsonObject.cached)
+                  cached: Boolean(jsonObject.cached),
+                  pdop:Number(jsonObject.pdop),
+                  fault_bits:Number(jsonObject.fault_bits),
+                  velocity_north:Number(jsonObject.velocity_north),
+                  velocity_east:Number(jsonObject.velocity_east),
+                  velocity_up:Number(jsonObject.velocity_up),
                 };
                 emitter.emit(that.GPS_LOCATION_EVENT, location);
               }
