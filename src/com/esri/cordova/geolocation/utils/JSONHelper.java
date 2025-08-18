@@ -149,7 +149,7 @@ public final class JSONHelper {
                     {
                          float pdop2 = extras.getFloat("gps_pdop", -1f); // 第二个参数为默认值
                         if (pdop2 != -1f) {
-                                Log.d("PDOP", "gps_pdop位置精度衰减因子2：" + pdop2);
+                            Log.d("PDOP", "gps_pdop位置精度衰减因子2：" + pdop2);
                         }
                         json.put("pdop", pdop2);
                     }
@@ -174,10 +174,7 @@ public final class JSONHelper {
                     // 4	多路径效应严重（信号反射干扰）
                     // 键名如 fault_bits 或 error_flags（类型为 int）
                     int faultBits = extras.getInt("fault_bits", 0);
-                    if(faultBits!=0)
-                    {
-                        json.put("fault_bits", faultBits);
-                    }
+                    json.put("fault_bits", faultBits);
                     //  故障字通常通过 getExtras() 获取，键名如 fault_bits 或 error_flags（类型为 int）。解析时需按位判断
                     // // 解析故障位（示例：判断是否卫星信号丢失）
                     // boolean isSignalLost = (faultBits & (1 << 0)) != 0; 
@@ -286,10 +283,7 @@ public final class JSONHelper {
                     // 4	多路径效应严重（信号反射干扰）
                     // 键名如 fault_bits 或 error_flags（类型为 int）
                     int faultBits = extras.getInt("fault_bits", 0);
-                    if(faultBits!=0)
-                    {
-                        json.put("fault_bits", faultBits);
-                    }
+                    json.put("fault_bits", faultBits);
                     //  故障字通常通过 getExtras() 获取，键名如 fault_bits 或 error_flags（类型为 int）。解析时需按位判断
                     // // 解析故障位（示例：判断是否卫星信号丢失）
                     // boolean isSignalLost = (faultBits & (1 << 0)) != 0; 

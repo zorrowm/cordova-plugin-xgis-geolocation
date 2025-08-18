@@ -20,14 +20,21 @@ https://www.npmjs.com/package/cordova-plugin-advanced-geolocation
 
 https://github.com/zorrowm/cordova-plugin-xgis-geolocation/blob/HEAD/api_reference.md
 
+## 版本说明
+
+- v0.0.2 为Location定位增加更多参数: 位置精度衰减因子pdop、地速分量(velocity_east、velocity_north、velocity_up)、故障字fault_bits;
+- v0.0.1 初始版本，解决使用`GnssStatus`接口获取卫星数据；
+
 ## 基础模型类型
 
 ```ts
+//定位位置模型
 export interface IGPSPosition {
   /**
    * 位置来源,gps或network
    */
   provider: string;
+
   /**
    * 经度,单位：度
    */
@@ -62,8 +69,36 @@ export interface IGPSPosition {
    * 是否来自于缓存
    */
   cached: boolean;
-}
 
+  /**
+   * 位置精度衰减因子
+   */
+  pdop:number;
+
+  //地速分量
+  /**
+   * 东向分量
+   */
+  velocity_east:number;
+  /**
+   * 北向分量
+   */
+  velocity_north:number;
+  /**
+   * 垂直分量
+   */
+  velocity_up:number;
+  /**
+   * 故障字
+   */
+  fault_bits:number;
+}
+```
+
+
+
+
+```ts
 /**
  * 卫星数据
  */
@@ -113,7 +148,7 @@ export interface IGroupSatellites {
   /**
    * 时间，毫秒数，从1970.1.1起算
    */
-  // timestamp:number,
+  timestamp:number,
   /**
    * 解析为日期
    */
