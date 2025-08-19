@@ -25,6 +25,7 @@ import android.location.LocationManager;
 import android.location.LocationProvider;
 import android.location.OnNmeaMessageListener;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.Build;
 import android.util.Log;
@@ -393,14 +394,14 @@ public final class GPSController implements Runnable {
                     sendCallback(PluginResult.Status.OK, nmeaWithTime);
                     // 处理NMEA数据，nmea是字符串如"$GPGGA,002153.000,3342.6618,N,11751.3858,W,1,10,1.2,27.0,M,-34.2,M,,0000*5E"
                     double altitudeMslValue=0;
-                    if (message.startsWith("\$GPGGA") || message.startsWith("\$GNGNS") || message.startsWith("\$GNGGA")) 
+                    if (message.startsWith("$GPGGA") || message.startsWith("$GNGNS") || message.startsWith("$GNGGA")) 
                     {
                         Double altitudeMsl = NmeaUtils.getAltitudeMeanSeaLevel(message);
                         if (altitudeMsl != null) {
                             altitudeMslValue=altitudeMsl.doubleValue();
                         }
                     }
-                    if (message.startsWith("\$GNGSA") || message.startsWith("\$GPGSA")) 
+                    if (message.startsWith("$GNGSA") || message.startsWith("$GPGSA")) 
                     {
                        DilutionOfPrecision dop = NmeaUtils.getDop(message);
                         if (dop != null) {
@@ -416,7 +417,7 @@ public final class GPSController implements Runnable {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     _locationManager.addNmeaListener(ContextCompat.getMainExecutor(_context), _nmeaMessageListener);
                 } else {
-                    _locationManager.addNmeaListener(_nmeaMessageListener, Handler());//Looper.getMainLooper()
+                    _locationManager.addNmeaListener(_nmeaMessageListener,new Handler(Looper.getMainLooper()));//Looper.getMainLooper()
                 }
 
                 //参考：https://developer.android.google.cn/reference/android/location/LocationManager?hl=en#addNmeaListener(android.location.OnNmeaMessageListener,%20android.os.Handler)

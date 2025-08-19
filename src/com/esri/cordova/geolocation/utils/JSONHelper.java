@@ -713,8 +713,6 @@ public final class JSONHelper {
      public static String parseNmeaDataJSON( String message, long timestamp) {
 
         final JSONObject json = new JSONObject();
-
-        if(location != null){
             try {
                 json.put("provider", "nmea");
                 json.put("timestamp", timestamp);
@@ -723,7 +721,7 @@ public final class JSONHelper {
             catch (JSONException exc) {
                 logJSONException(exc);
             }
-        }
+        
 
         return json.toString();
     }
@@ -731,8 +729,6 @@ public final class JSONHelper {
     public static String parseNmeaDopJSON(DilutionOfPrecision dopObj,double altitudeMeanSeaLevel) {
 
         final JSONObject json = new JSONObject();
-
-        if(location != null){
             try {
 
                 json.put("provider", "nmea-dop");
@@ -744,7 +740,6 @@ public final class JSONHelper {
             catch (JSONException exc) {
                 logJSONException(exc);
             }
-        }
 
         return json.toString();
     }
