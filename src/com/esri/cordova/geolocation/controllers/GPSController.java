@@ -62,6 +62,8 @@ public final class GPSController implements Runnable {
     private static boolean _returnSatelliteData = false;
     private static LocationDataBuffer _locationDataBuffer = null;
     private static Context _context;
+    private static  double lastAltitude=-1;
+    private static  long lastTimeStamp=-1;
 
     private static final String TAG = "GeolocationPlugin";
 
@@ -382,9 +384,8 @@ public final class GPSController implements Runnable {
 
     private static InitStatus setStartNmeaListening() {
         final InitStatus status = new InitStatus();
-
+       
         final Boolean gpsProviderEnabled = _locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-
         if (gpsProviderEnabled) {
             _nmeaMessageListener = new OnNmeaMessageListener() {
                 @Override
@@ -392,21 +393,43 @@ public final class GPSController implements Runnable {
 
                     String nmeaWithTime = JSONHelper.parseNmeaDataJSON(message, timestamp);
                     sendCallback(PluginResult.Status.OK, nmeaWithTime);
+                    //参考：https://baike.baidu.com/item/NMEA-0183/1810482
                     // 处理NMEA数据，nmea是字符串如"$GPGGA,002153.000,3342.6618,N,11751.3858,W,1,10,1.2,27.0,M,-34.2,M,,0000*5E"
-                    double altitudeMslValue=0;
                     if (message.startsWith("$GPGGA") || message.startsWith("$GNGNS") || message.startsWith("$GNGGA")) 
                     {
+                     
                         Double altitudeMsl = NmeaUtils.getAltitudeMeanSeaLevel(message);
                         if (altitudeMsl != null) {
-                            altitudeMslValue=altitudeMsl.doubleValue();
+                            //垂直速度
+                            double velocityUp=0.0;
+                            long currentTimeStamp=timestamp;
+                            double altitudeMslValue=altitudeMsl;
+                            if(lastAltitude==-1)
+                            {
+                                lastAltitude=altitudeMslValue;
+                                lastTimeStamp=currentTimeStamp;
+                            }
+                            else
+                            {
+                                long detTime=Math.round((currentTimeStamp-lastTimeStamp)/1000);//ms转为s
+                                if(detTime<30)//小于30s
+                                {
+                                    velocityUp=(altitudeMslValue-lastAltitude)/detTime;
+                                }
+                                lastAltitude=altitudeMslValue;
+                                lastTimeStamp=currentTimeStamp;
+                            }
+
+                            String amslContent = JSONHelper.parseNmeaAlitudeMSLJSON(altitudeMslValue,velocityUp);
+                            sendCallback(PluginResult.Status.OK, amslContent);
                         }
+                        return;
                     }
                     if (message.startsWith("$GNGSA") || message.startsWith("$GPGSA")) 
                     {
                        DilutionOfPrecision dop = NmeaUtils.getDop(message);
                         if (dop != null) {
-                            // _dop.value = dop
-                            String dopContent = JSONHelper.parseNmeaDopJSON(dop,altitudeMslValue);
+                            String dopContent = JSONHelper.parseNmeaDopJSON(dop);
                             sendCallback(PluginResult.Status.OK, dopContent);
                         }
                     }

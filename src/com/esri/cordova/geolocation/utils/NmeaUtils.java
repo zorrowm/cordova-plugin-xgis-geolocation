@@ -44,11 +44,11 @@ public class NmeaUtils {
      * parsed
      */
     public static Double getAltitudeMeanSeaLevel(String nmeaSentence) {
-        final int ALTITUDE_INDEX = 9;
-        String[] tokens = nmeaSentence.split(",");
 
         if (nmeaSentence.startsWith("$GPGGA") || nmeaSentence.startsWith("$GNGNS") || nmeaSentence.startsWith("$GNGGA")) {
             String altitude;
+            final int ALTITUDE_INDEX = 9;
+            String[] tokens = nmeaSentence.split(",");
             try {
                 altitude = tokens[ALTITUDE_INDEX];
             } catch (ArrayIndexOutOfBoundsException e) {
