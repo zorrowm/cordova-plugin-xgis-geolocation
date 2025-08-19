@@ -41,6 +41,7 @@ import android.util.Log;
 
 import com.esri.cordova.geolocation.model.Error;
 import com.esri.cordova.geolocation.model.StopLocation;
+import  com.esri.cordova.geolocation.model.DilutionOfPrecision;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -707,5 +708,44 @@ public final class JSONHelper {
 
     private static void logJSONException(JSONException exc){
         Log.d(TAG, ErrorMessages.JSON_EXCEPTION + ", " + exc.getMessage());
+    }
+
+     public static String parseNmeaDataJSON( String message, long timestamp) {
+
+        final JSONObject json = new JSONObject();
+
+        if(location != null){
+            try {
+                json.put("provider", "nmea");
+                json.put("timestamp", timestamp);
+                json.put("message", message);
+            }
+            catch (JSONException exc) {
+                logJSONException(exc);
+            }
+        }
+
+        return json.toString();
+    }
+
+    public static String parseNmeaDopJSON(DilutionOfPrecision dopObj,double altitudeMeanSeaLevel) {
+
+        final JSONObject json = new JSONObject();
+
+        if(location != null){
+            try {
+
+                json.put("provider", "nmea-dop");
+                json.put("pdop", dopObj.getPositionDop());
+                json.put("hdop", dopObj.getHorizontalDop());
+                json.put("vdop", dopObj.getVerticalDop());
+                json.put("altitudeMeanSeaLevel", altitudeMeanSeaLevel);
+            }
+            catch (JSONException exc) {
+                logJSONException(exc);
+            }
+        }
+
+        return json.toString();
     }
 }

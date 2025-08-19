@@ -16,23 +16,27 @@
  */
 package com.esri.cordova.geolocation.controllers;
 
-
 import android.content.Context;
-// import android.location.GpsStatus;
+import android.location.GpsStatus;
 import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationProvider;
+import android.location.OnNmeaMessageListener;
 import android.os.Bundle;
 import android.os.Looper;
+import android.os.Build;
 import android.util.Log;
+import androidx.core.content.ContextCompat;
 
 import com.esri.cordova.geolocation.model.Coordinate;
 import com.esri.cordova.geolocation.model.InitStatus;
 import com.esri.cordova.geolocation.model.LocationDataBuffer;
+import com.esri.cordova.geolocation.model.DilutionOfPrecision;
 import com.esri.cordova.geolocation.utils.ErrorMessages;
 import com.esri.cordova.geolocation.utils.JSONHelper;
+import com.esri.cordova.geolocation.utils.NmeaUtils;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
@@ -42,8 +46,9 @@ public final class GPSController implements Runnable {
 
     private static LocationManager _locationManager = null;
     private static LocationListener _locationListenerGPSProvider = null;
-    // private static GpsStatus.Listener _gpsStatusListener = null;
-     private static GnssStatus.Callback _gnsscallback=null;
+    private static GpsStatus.Listener _gpsStatusListener = null;
+    private static GnssStatus.Callback _gnsscallback = null;
+    private static OnNmeaMessageListener _nmeaMessageListener = null;
 
     private static CallbackContext _callbackContext; // Threadsafe
     private static CordovaInterface _cordova;
@@ -55,6 +60,7 @@ public final class GPSController implements Runnable {
     private static boolean _returnCache = false;
     private static boolean _returnSatelliteData = false;
     private static LocationDataBuffer _locationDataBuffer = null;
+    private static Context _context;
 
     private static final String TAG = "GeolocationPlugin";
 
@@ -67,7 +73,7 @@ public final class GPSController implements Runnable {
             boolean returnSatelliteData,
             boolean buffer,
             int bufferSize
-    ){
+    ) {
         _cordova = cordova;
         _callbackContext = callbackContext;
         _minDistance = minDistance;
@@ -76,14 +82,15 @@ public final class GPSController implements Runnable {
         _returnSatelliteData = returnSatelliteData;
         _buffer = buffer;
         _bufferSize = bufferSize;
+        _context = _cordova.getActivity();
     }
 
-    public void run(){
+    public void run() {
         // Reference: http://developer.android.com/reference/android/os/Process.html#THREAD_PRIORITY_BACKGROUND
         android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
 
         // We are running a Looper to allow the Cordova CallbackContext to be passed within the Thread as a message.
-        if(Looper.myLooper() == null){
+        if (Looper.myLooper() == null) {
             _locationManager = (LocationManager) _cordova.getActivity().getSystemService(Context.LOCATION_SERVICE);
             Looper.prepare();
             startLocation();
@@ -91,16 +98,16 @@ public final class GPSController implements Runnable {
         }
     }
 
-    public void startLocation(){
+    public void startLocation() {
 
-        if(!Thread.currentThread().isInterrupted()){
-            Log.i(TAG,"Available location providers: " + _locationManager.getAllProviders().toString());
+        if (!Thread.currentThread().isInterrupted()) {
+            Log.i(TAG, "Available location providers: " + _locationManager.getAllProviders().toString());
 
             Thread.currentThread().setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
                 @Override
                 public void uncaughtException(Thread thread, Throwable throwable) {
                     Log.e(TAG, "Failing gracefully after detecting an uncaught exception on GPSController thread. "
-                        + throwable.getMessage());
+                            + throwable.getMessage());
 
                     sendCallback(PluginResult.Status.ERROR,
                             JSONHelper.errorJSON(LocationManager.GPS_PROVIDER, ErrorMessages.UNCAUGHT_THREAD_EXCEPTION()));
@@ -108,39 +115,37 @@ public final class GPSController implements Runnable {
                 }
             });
 
-            if(_buffer) {
+            if (_buffer) {
                 _locationDataBuffer = new LocationDataBuffer(_bufferSize);
             }
 
             final InitStatus gpsListener = setLocationListenerGPSProvider();
             InitStatus satelliteListener = new InitStatus();
 
-            if(_returnSatelliteData){
-               satelliteListener = setGPSStatusListener();
+            if (_returnSatelliteData) {
+                satelliteListener = setGPSStatusListener();
             }
+            final InitStatus nmeaListener = setStartNmeaListening();
 
-            if(!gpsListener.success || !satelliteListener.success){
-                if(gpsListener.exception == null){
+            if (!gpsListener.success || !satelliteListener.success || !nmeaListener.success) {
+                if (gpsListener.exception == null) {
                     // Handle custom error messages
                     sendCallback(PluginResult.Status.ERROR,
                             JSONHelper.errorJSON(LocationManager.GPS_PROVIDER, gpsListener.error));
-                }
-                else {
+                } else {
                     // Handle system exceptions
                     sendCallback(PluginResult.Status.ERROR,
                             JSONHelper.errorJSON(LocationManager.GPS_PROVIDER, gpsListener.exception));
                 }
-            }
-            else {
+            } else {
                 // Return cache immediate if requested, otherwise wait for a location provider
-                if(_returnCache){
+                if (_returnCache) {
 
                     Location location = null;
 
                     try {
                         location = _locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                    }
-                    catch(SecurityException exc){
+                    } catch (SecurityException exc) {
                         Log.e(TAG, exc.getMessage());
                     }
 
@@ -149,14 +154,13 @@ public final class GPSController implements Runnable {
                     // If the provider is disabled or currently unavailable then null is returned
                     // Some devices will return null if the GPS is still warming up and hasn't gotten
                     // a full signal lock yet.
-                    if(location != null) {
+                    if (location != null) {
                         parsedLocation = JSONHelper.locationJSON(LocationManager.GPS_PROVIDER, location, true);
                         sendCallback(PluginResult.Status.OK, parsedLocation);
                     }
                 }
             }
-        }
-        else {
+        } else {
             Log.e(TAG, "Not starting GPSController due to thread interrupt.");
         }
     }
@@ -164,115 +168,122 @@ public final class GPSController implements Runnable {
     /**
      * Full stop using brute force. Works with many Android versions.
      */
-    public void stopLocation(){
+    public void stopLocation() {
 
-        if(_locationManager != null){
+        if (_locationManager != null) {
             Log.d(TAG, "Attempting to stop gps geolocation");
 
-            // if(_gpsStatusListener != null){
-            //     _locationManager.removeGpsStatusListener(_gpsStatusListener);
-            //     _gpsStatusListener = null;
-            // }
-            if(_gnsscallback!=null)
-            _locationManager.unregisterGnssStatusCallback(_gnsscallback);
+            if (_gpsStatusListener != null) {
+                _locationManager.removeGpsStatusListener(_gpsStatusListener);
+                _gpsStatusListener = null;
+            }
+            if (_gnsscallback != null) {
+                _locationManager.unregisterGnssStatusCallback(_gnsscallback);
+            }
 
-            if(_locationListenerGPSProvider != null){
+            if (_locationListenerGPSProvider != null) {
 
                 try {
                     _locationManager.removeUpdates(_locationListenerGPSProvider);
-                }
-                catch(SecurityException exc){
+                } catch (SecurityException exc) {
                     Log.e(TAG, exc.getMessage());
                 }
 
                 _locationListenerGPSProvider = null;
             }
-
+            // 移除所有监听器      
+            if (_nmeaMessageListener != null) {
+                _locationManager.removeNmeaListener(_nmeaMessageListener);
+            }
             _locationManager = null;
 
             // Clear all elements from the buffer
-            if(_locationDataBuffer != null) {
+            if (_locationDataBuffer != null) {
                 _locationDataBuffer.clear();
             }
 
             try {
                 Thread.currentThread().interrupt();
-            }
-            catch(SecurityException exc){
+            } catch (SecurityException exc) {
                 Log.e(TAG, exc.getMessage());
                 sendCallback(PluginResult.Status.ERROR,
                         JSONHelper.errorJSON(LocationManager.GPS_PROVIDER, ErrorMessages.FAILED_THREAD_INTERRUPT()));
             }
-        }
-        else{
+        } else {
             Log.d(TAG, "GPS location already stopped");
         }
     }
 
     /**
      * Callback handler for this Class
+     *
      * @param status Message status
      * @param message Any message
      */
-    private static void sendCallback(PluginResult.Status status, String message){
-        if(!Thread.currentThread().isInterrupted()){
+    private static void sendCallback(PluginResult.Status status, String message) {
+        if (!Thread.currentThread().isInterrupted()) {
             final PluginResult result = new PluginResult(status, message);
             result.setKeepCallback(true);
             _callbackContext.sendPluginResult(result);
         }
     }
 
-    private static InitStatus setGPSStatusListener(){
+    private static InitStatus setGPSStatusListener() {
+        //https://blog.csdn.net/sig321/article/details/141252746
+        // 获取卫星信息：（API>24）Build.VERSION_CODES.N
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            _gnsscallback = new GnssStatus.Callback() {
+                //定期调用以报告GNSS卫星状态
+                @Override
+                public void onSatelliteStatusChanged(GnssStatus status) {
 
-         _gnsscallback = new GnssStatus.Callback() {
-            //定期调用以报告GNSS卫星状态
-            @Override
-            public void onSatelliteStatusChanged(GnssStatus status) {
+                    Log.d(TAG, "GPS status changed.");
 
-                Log.d(TAG, "GPS status changed.");
-
-                // Ignore if GPS_EVENT_STARTED or GPS_EVENT_STOPPED
-                if(!Thread.currentThread().isInterrupted() &&_locationManager != null){
-                    sendCallback(PluginResult.Status.OK,
-                            JSONHelper.gnssStatusDataJSON(status));
+                    // Ignore if GPS_EVENT_STARTED or GPS_EVENT_STOPPED
+                    if (!Thread.currentThread().isInterrupted() && _locationManager != null) {
+                        sendCallback(PluginResult.Status.OK,
+                                JSONHelper.gnssStatusDataJSON(status));
+                    }
                 }
-            }
-        };
-        // IMPORTANT: The GpsStatus.Listener Interface is deprecated at API 24.
-        // Reference: https://developer.android.com/reference/android/location/package-summary.html
-        // _gpsStatusListener = new GpsStatus.Listener() {
+            };
+        } else {
+            // IMPORTANT: The GpsStatus.Listener Interface is deprecated at API 24.
+            // Reference: https://developer.android.com/reference/android/location/package-summary.html
+            _gpsStatusListener = new GpsStatus.Listener() {
 
-        //     @Override
-        //     public void onGpsStatusChanged(int event) {
-        //         Log.d(TAG, "GPS status changed.");
+                @Override
+                public void onGpsStatusChanged(int event) {
+                    Log.d(TAG, "GPS status changed.");
+                    // Ignore if GPS_EVENT_STARTED or GPS_EVENT_STOPPED
+                    if (!Thread.currentThread().isInterrupted()
+                            && (event == GpsStatus.GPS_EVENT_FIRST_FIX
+                            || event == GpsStatus.GPS_EVENT_SATELLITE_STATUS)
+                            && _locationManager != null) {
+                        sendCallback(PluginResult.Status.OK,
+                                JSONHelper.satelliteDataJSON(_locationManager.getGpsStatus(null)));
+                    }
+                }
+            };
 
-        //         // Ignore if GPS_EVENT_STARTED or GPS_EVENT_STOPPED
-        //         if(!Thread.currentThread().isInterrupted() &&
-        //                 (event == GpsStatus.GPS_EVENT_FIRST_FIX ||
-        //                         event == GpsStatus.GPS_EVENT_SATELLITE_STATUS) &&
-        //                                 _locationManager != null){
-        //             sendCallback(PluginResult.Status.OK,
-        //                     JSONHelper.satelliteDataJSON(_locationManager.getGpsStatus(null)));
-        //         }
-        //     }
-        // };
-
+        }
         final InitStatus status = new InitStatus();
 
         final Boolean gpsProviderEnabled = _locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
-        if(gpsProviderEnabled){
-            try{
-                // _locationManager.addGpsStatusListener(_gpsStatusListener);
-                _locationManager.registerGnssStatusCallback(_gnsscallback, null);
-            }
-            // if the ACCESS_FINE_LOCATION permission is not present
-            catch(SecurityException exc){
+        if (gpsProviderEnabled) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    _locationManager.registerGnssStatusCallback(_gnsscallback, null);
+                } else {
+                    _locationManager.addGpsStatusListener(_gpsStatusListener);
+                }
+
+            } // if the ACCESS_FINE_LOCATION permission is not present
+            catch (SecurityException exc) {
                 status.success = false;
                 status.exception = exc.getMessage();
             }
-        }
-        else {
+        } else {
             //GPS not enabled
             status.success = false;
             status.error = ErrorMessages.GPS_UNAVAILABLE();
@@ -281,12 +292,12 @@ public final class GPSController implements Runnable {
         return status;
     }
 
-    private InitStatus setLocationListenerGPSProvider(){
+    private InitStatus setLocationListenerGPSProvider() {
 
         _locationListenerGPSProvider = new LocationListener() {
 
             public void onLocationChanged(Location location) {
-                if(_buffer && !Thread.currentThread().isInterrupted()){
+                if (_buffer && !Thread.currentThread().isInterrupted()) {
                     final Coordinate coordinate = new Coordinate();
                     coordinate.latitude = location.getLatitude();
                     coordinate.longitude = location.getLongitude();
@@ -308,8 +319,7 @@ public final class GPSController implements Runnable {
                                     center.accuracy,
                                     size)
                     );
-                }
-                else {
+                } else {
                     sendCallback(PluginResult.Status.OK,
                             JSONHelper.locationJSON(LocationManager.GPS_PROVIDER, location, false));
                 }
@@ -347,21 +357,19 @@ public final class GPSController implements Runnable {
         final InitStatus status = new InitStatus();
         final Boolean gpsProviderEnabled = _locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
-        if(gpsProviderEnabled){
+        if (gpsProviderEnabled) {
 
-            try{
+            try {
                 Log.d(TAG, "Starting LocationManager.GPS_PROVIDER");
                 // Register the listener with the Location Manager to receive location updates
                 _locationManager.requestLocationUpdates(
                         LocationManager.GPS_PROVIDER, _minTime, _minDistance, _locationListenerGPSProvider);
-            }
-            catch(SecurityException exc){
+            } catch (SecurityException exc) {
                 Log.e(TAG, "Unable to start GPS provider. " + exc.getMessage());
                 status.success = false;
                 status.exception = exc.getMessage();
             }
-        }
-        else {
+        } else {
             Log.w(TAG, ErrorMessages.GPS_UNAVAILABLE().message);
             //GPS not enabled
             status.success = false;
@@ -370,4 +378,66 @@ public final class GPSController implements Runnable {
 
         return status;
     }
+
+    private static InitStatus setStartNmeaListening() {
+        final InitStatus status = new InitStatus();
+
+        final Boolean gpsProviderEnabled = _locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+
+        if (gpsProviderEnabled) {
+            _nmeaMessageListener = new OnNmeaMessageListener() {
+                @Override
+                public void onNmeaMessage(String message, long timestamp) {
+
+                    String nmeaWithTime = JSONHelper.parseNmeaDataJSON(message, timestamp);
+                    sendCallback(PluginResult.Status.OK, nmeaWithTime);
+                    // 处理NMEA数据，nmea是字符串如"$GPGGA,002153.000,3342.6618,N,11751.3858,W,1,10,1.2,27.0,M,-34.2,M,,0000*5E"
+                    double altitudeMslValue=0;
+                    if (message.startsWith("\$GPGGA") || message.startsWith("\$GNGNS") || message.startsWith("\$GNGGA")) 
+                    {
+                        Double altitudeMsl = NmeaUtils.getAltitudeMeanSeaLevel(message);
+                        if (altitudeMsl != null) {
+                            altitudeMslValue=altitudeMsl.doubleValue();
+                        }
+                    }
+                    if (message.startsWith("\$GNGSA") || message.startsWith("\$GPGSA")) 
+                    {
+                       DilutionOfPrecision dop = NmeaUtils.getDop(message);
+                        if (dop != null) {
+                            // _dop.value = dop
+                            String dopContent = JSONHelper.parseNmeaDopJSON(dop,altitudeMslValue);
+                            sendCallback(PluginResult.Status.OK, dopContent);
+                        }
+                    }
+                }
+            };
+            try {
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    _locationManager.addNmeaListener(ContextCompat.getMainExecutor(_context), _nmeaMessageListener);
+                } else {
+                    _locationManager.addNmeaListener(_nmeaMessageListener, Handler());//Looper.getMainLooper()
+                }
+
+                //参考：https://developer.android.google.cn/reference/android/location/LocationManager?hl=en#addNmeaListener(android.location.OnNmeaMessageListener,%20android.os.Handler)
+                // 添加NMEA监听器
+                // _locationManager.addNmeaListener(
+                //   Context.getMainExecutor(),
+                //     _nmeaMessageListener
+                //     //Looper.getMainLooper() // 使用主线程Looper
+                // );
+            } // if the ACCESS_FINE_LOCATION permission is not present
+            catch (SecurityException exc) {
+                status.success = false;
+                status.exception = exc.getMessage();
+            }
+        } else {
+            //GPS not enabled
+            status.success = false;
+            status.error = ErrorMessages.GPS_UNAVAILABLE();
+        }
+
+        return status;
+    }
+
 }
