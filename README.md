@@ -22,6 +22,7 @@ https://github.com/zorrowm/cordova-plugin-xgis-geolocation/blob/HEAD/api_referen
 
 ## 版本说明
 
+- v0.0.3 修改cordova.require报“cordova对象为空”问题；
 - v0.0.2 增加对兼容旧版API支持;增加Location定位的地速分量(velocity_east、velocity_north);增加报文输出；增加解析报文获取位置精度衰减因子（pdop、hdop、vdop）;增加获取基于海平面高度和垂直地速分量（velocity_up）；
 - v0.0.1 初始版本，解决使用`GnssStatus`接口获取卫星数据；
 
