@@ -3,7 +3,7 @@
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="cordova-plugin-xgis-geolocation"
-    version="0.0.1">
+    version="0.0.4">
 
     <name>Cordova Advanced Geolocation Plugin - Android</name>
     <description>
@@ -14,7 +14,7 @@
     <repo>https://github.com/zorrowm/cordova-plugin-xgis-geolocation.git</repo>
 
     <engines>
-        <engine name="cordova-android" version=">=5.0.0" />
+        <engine name="cordova-android" version=">=6.3.0" />
     </engines>
 
     <!-- android is the only platform supported by this plugin! -->

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.​
  */
-var exec = require('cordova/exec');
+var exec = cordova.require('cordova/exec');
 
 var AdvancedGeolocation = {
 
